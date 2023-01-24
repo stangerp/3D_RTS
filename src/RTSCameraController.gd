@@ -15,10 +15,13 @@ export (int, 0, 1000) var min_zoom = 10
 export (int, 0, 1000) var max_zoom = 90
 export (float, 0, 1000, 0.1) var zoom_speed = 10
 export (float, 0, 1, 0.1) var zoom_speed_damp = 0.5
+# pan
+export (float, 0 ,10, 0.5) var pan_speed = 2
 # flags
 export (bool) var allow_rotation = true
 export (bool) var inverted_y = false
-export (bool) var zoom_to_cursor = false
+export (bool) var zoom_to_cursor = true
+export (bool) var allow_pan = true
 
 
 #############################
@@ -33,16 +36,34 @@ var _zoom_direction = 0
 onready var camera = $Elevation/Camera
 const PLANE = Plane(Vector3.UP, 0)
 const RAY_LENGTH = 1000
+# pan
+var _is_panning = false
+# freeze
+var _is_frozen = false
+# jump
+onready var tween = $Tween
 
 
 #############################
 # OVERRIDE FUNCTIONS
 #############################
+func _ready() -> void:
+	Events.connect("camera_freeze_requested", self, "_freeze")
+	Events.connect("camera_unfreeze_requested", self, "_unfreeze")
+	tween.connect("tween_all_completed", self, "_end_jump")
+	Events.connect("camera_jump_requested", self, "_jump_to_location")
+	Events.connect("toggle_camera_freeze_requested", self, "_toggle_freeze")
+
+
 func _process(delta: float) -> void:
+	if _is_frozen:
+		return
 	_move(delta)
 	_rotate(delta)
 	_zoom(delta)
-	
+	_pan(delta)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	# test if we are rotating
 	if event.is_action_pressed("camera_rotate"):
@@ -55,8 +76,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_zoom_direction = -1
 	if event.is_action_pressed("camera_zoom_out"):
 		_zoom_direction = 1
-	
-
+	if event.is_action_pressed("camera_pan"):
+		_is_panning = true
+		_last_mouse_position = get_viewport().get_mouse_position()
+	if event.is_action_released("camera_pan"):
+		_is_panning = false
 
 
 ##############################
@@ -76,7 +100,7 @@ func _move(delta: float) -> void:
 		velocity += transform.basis.x
 	velocity = velocity.normalized()
 	# translate
-	translation += velocity * delta * movement_speed
+	_translate_location(velocity * delta * movement_speed)
 
 
 func _rotate(delta: float) -> void:
@@ -108,6 +132,33 @@ func _zoom(delta: float) -> void:
 	_zoom_direction *= zoom_speed_damp
 	if abs(_zoom_direction) <= 0.0001:
 		_zoom_direction = 0
+
+
+func _pan(delta: float) -> void:
+	if not _is_panning or not allow_pan:
+		return
+	# get the mouse displacement
+	var displacement = _get_mouse_displacement()
+	# we transform the displacement into velocity
+	var velocity = Vector3(displacement.x, 0, displacement.y) * delta * pan_speed
+	# we apply this velocity to the camera object
+	_translate_location(-velocity)
+
+
+func _jump_to_location(location: Vector3, duration: float) -> void:
+	tween.stop_all()
+	_freeze()
+	
+	tween.interpolate_property(
+		self, 
+		"translation",
+		translation,
+		location,
+		duration,
+		Tween.TRANS_SINE,
+		Tween.EASE_OUT
+		)
+	tween.start()
 
 
 ###########################
@@ -154,4 +205,25 @@ func _realign_camera(location: Vector3) -> void:
 	var new_location = _get_plane_click_location()
 	var displacement = location - new_location
 	# move the camera based on that calculation
-	translation += displacement
+	_translate_location(displacement)
+
+
+func _translate_location(v: Vector3) -> void:
+	translation += v
+	Events.emit_signal("camera_moved", translation)
+
+
+func _freeze() -> void:
+	_is_frozen = true
+
+
+func _unfreeze() -> void:
+	_is_frozen = false
+
+
+func _toggle_freeze() -> void:
+	_is_frozen = !_is_frozen
+
+
+func _end_jump() -> void:
+	_unfreeze()
