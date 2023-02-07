@@ -1,27 +1,27 @@
-extends Spatial
+#extends Spatial
 
 
 #############################
 # EXPORT PARAMS
 #############################
 # movement params
-export (float,0,1000) var movement_speed = 20
+@export_range(0,1000) var movement_speed = 20
 # rotation
-export (int, 0, 90) var min_elevation_angle = 10
-export (int, 0, 90) var max_elevation_angle = 90
-export (float, 0, 1000, 0.1) var rotation_speed = 20
+@export_range(0, 90) var min_elevation_angle = 10
+@export_range(0, 90) var max_elevation_angle = 90
+@export_range(0, 1000, 0.1) var rotation_speed = 20
 # zoom
-export (int, 0, 1000) var min_zoom = 10
-export (int, 0, 1000) var max_zoom = 90
-export (float, 0, 1000, 0.1) var zoom_speed = 10
-export (float, 0, 1, 0.1) var zoom_speed_damp = 0.5
+@export_range(0, 1000) var min_zoom = 10
+@export_range(0, 1000) var max_zoom = 90
+@export_range(0, 1000, 0.1) var zoom_speed = 10
+@export_range(0, 1, 0.1) var zoom_speed_damp = 0.5
 # pan
-export (float, 0 ,10, 0.5) var pan_speed = 2
+@export_range(0 ,10, 0.5) var pan_speed = 2
 # flags
-export (bool) var allow_rotation = true
-export (bool) var inverted_y = false
-export (bool) var zoom_to_cursor = true
-export (bool) var allow_pan = true
+@export var allow_rotation = true
+@export var inverted_y = false
+@export var zoom_to_cursor = true
+@export var allow_pan = true
 
 
 #############################
@@ -30,10 +30,10 @@ export (bool) var allow_pan = true
 # movement
 var _last_mouse_position = Vector2()
 var _is_rotating = false
-onready var elevation = $Elevation
+@onready var elevation = "Elevation"
 # zoom
 var _zoom_direction = 0
-onready var camera = $Elevation/Camera
+@onready var camera = "Elevation/Camera"
 const PLANE = Plane(Vector3.UP, 0)
 const RAY_LENGTH = 1000
 # pan
@@ -41,7 +41,7 @@ var _is_panning = false
 # freeze
 var _is_frozen = false
 # jump
-onready var tween = $Tween
+@onready var tween = "Tween"
 
 
 #############################
